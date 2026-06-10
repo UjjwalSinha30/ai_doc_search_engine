@@ -74,6 +74,15 @@ def search(
     Returns: (documents, metadatas) sorted by hybrid relevance
     """
     collection = get_or_create_collection(user_email)
+    collection_name = f"docs_{user_email.replace('@', '_').replace('.', '_')}"
+    
+    # Debug: Check collection state
+    try:
+        collection_count = collection.count()
+        print(f"📊 Collection '{collection_name}' has {collection_count} total chunks")
+    except Exception as e:
+        print(f"⚠️ Could not count collection: {e}")
+    
     where_clause = {"document_id": document_id} if document_id is not None else None
     
     # ── 1. Dense retrieval (vector search)
@@ -91,14 +100,27 @@ def search(
     distances = results["distances"][0] if results.get("distances") else []
 
     if not docs:
+        print(f"⚠️ Vector search returned 0 documents for query: '{query}'")
+        print(f"   Query: '{query}'")
+        print(f"   Collection: {collection_name}")
+        print(f"   Document filter: {where_clause if where_clause else 'None (searching all)'}")
         return [], []
     
     # Add distance threshold for vector search
-    DISTANCE_THRESHOLD = 1.2  # Adjust based on your embedding model
+    # For all-MiniLM-L6-v2 with cosine distance:
+    # - 0.0 = perfect match
+    # - 0.3-0.5 = strong semantic match
+    # - 0.7-1.0 = moderate match
+    # - 1.0+ = weak match
+    DISTANCE_THRESHOLD = 1.8  # Adjusted for sentence-transformers/all-MiniLM-L6-v2
 
     filtered_docs = []
     filtered_metas = []
     filtered_distances = []
+
+    # Debug: Log top distances
+    print(f"🔍 Vector search for query '{query}': retrieved {len(docs)} documents")
+    print(f"   Top 5 distances: {[f'{d:.3f}' for d in distances[:5]]}")
 
     for doc, meta, dist in zip(docs, metas, distances):
         if dist <= DISTANCE_THRESHOLD:
@@ -106,8 +128,11 @@ def search(
             filtered_metas.append(meta)
             filtered_distances.append(dist)
 
+    print(f"   After threshold {DISTANCE_THRESHOLD}: {len(filtered_docs)} documents passed")
+
     if not filtered_docs:
-        print(f"⚠️ No documents within distance threshold {DISTANCE_THRESHOLD}")
+        print(f"⚠️ No documents within distance threshold {DISTANCE_THRESHOLD} for query: '{query}'")
+        print(f"   Hint: Increase DISTANCE_THRESHOLD or check if documents were indexed correctly")
         return [], []        
     
     # ── 2. BM25 keyword scoring on dense candidates
@@ -140,6 +165,41 @@ def search(
     sorted_metas = [filtered_metas[i] for i in sorted_indices]
 
     return sorted_docs, sorted_metas
+
+
+def get_document_chunks(
+    document_id: int | None = None,
+    user_email: str = "",
+) -> Tuple[List[str], List[Dict[str, Any]]]:
+    """
+    Fetch stored chunks directly for summaries.
+
+    Summary requests need document order, not semantic similarity to a query.
+    """
+    collection = get_or_create_collection(user_email)
+    where_clause = {"document_id": document_id} if document_id is not None else None
+
+    try:
+        results = collection.get(
+            where=where_clause,
+            include=["documents", "metadatas"],
+        )
+    except Exception as e:
+        print(f"⚠️ Could not fetch document chunks: {e}")
+        return [], []
+
+    docs = results.get("documents") or []
+    metas = results.get("metadatas") or []
+
+    ordered = sorted(
+        zip(docs, metas),
+        key=lambda item: (
+            item[1].get("document_id", 0),
+            item[1].get("chunk_index", 0),
+        ),
+    )
+
+    return [doc for doc, _ in ordered], [meta for _, meta in ordered]
 
 
 def summarize(chunks: List[str],max_length: int = 500) -> str:

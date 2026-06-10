@@ -1,7 +1,4 @@
-# version: '3.8'
-
 services:
-  # MySQL Database
   mysql:
     image: mysql:8.0
     container_name: rag_mysql
@@ -12,18 +9,17 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql  
+      - mysql_data:/var/lib/mysql
     networks:
       - rag_network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$${MYSQL_ROOT_PASSWORD:-rootpassword}"]   
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppassword123"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
     command: --default-authentication-plugin=mysql_native_password
 
-  # Ollama Service (LLM inference engine)
   ollama:
     image: ollama/ollama:latest
     container_name: rag_ollama
@@ -41,35 +37,33 @@ services:
       retries: 10
       start_period: 60s
 
-  # FastAPI Application
   backend:
     build:
-        context: ./backend
-        dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: rag-backend
     restart: unless-stopped
     ports:
-        - "8000:8000"
+      - "8000:8000"
     env_file:
-        - ./backend/.env
+      - ./backend/.env
     volumes:
-        - ./backend:/app
-        - chroma_data:/app/chroma_data
+      - ./backend:/app
+      - chroma_data:/app/chroma_data
     networks:
-        - rag_network
+      - rag_network
     depends_on:
-        mysql:
-          condition: service_healthy
-        ollama:
-          condition: service_healthy
+      mysql:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
     healthcheck:
-        test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-        interval: 30s
-        timeout: 10s
-        retries: 5
-        start_period: 60s
-  
-  # React frontend
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
   frontend:
     build:
       context: ./frontend
@@ -87,15 +81,15 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s  
+      start_period: 20s
 
 volumes:
   mysql_data:
-     driver: local
+    driver: local
   chroma_data:
-     driver: local
+    driver: local
   ollama_data:
-     driver: local
+    driver: local
 
 networks:
   rag_network:

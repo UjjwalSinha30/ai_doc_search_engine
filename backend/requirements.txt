@@ -4,6 +4,7 @@ fastapi==0.128.0
 langchain_community==0.4.1
 langchain_core==1.2.6
 langchain_huggingface==1.2.0
+langchain-google-genai
 langchain_ollama==1.0.1
 langchain_text_splitters==1.1.0
 numpy==2.4.0
@@ -20,3 +21,5 @@ pymysql
 pydantic[email]
 python-multipart
 pypdf
+datasets
+ragas

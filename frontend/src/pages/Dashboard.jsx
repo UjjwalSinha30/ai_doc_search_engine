@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [isStreaming, setIsStreaming] = useState(false); // ← NEW
   const messagesEndRef = useRef(null);
   const abortControllerRef = useRef(null); // ← NEW
+  const [sessionId, setSessionId] = useState(null);
   
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -74,7 +75,8 @@ export default function Dashboard() {
         signal: controller.signal, // ← NEW: Attach signal
         body: JSON.stringify({ 
           message: text, 
-          document_id: selectedDocument?.id ?? null 
+          document_id: selectedDocument?.id ?? null,
+          session_id: sessionId
         }),
       });
 
@@ -116,6 +118,9 @@ export default function Dashboard() {
                     : m
                 )
               );
+            }
+            if (parsed.session_id) {
+              setSessionId(parsed.session_id);
             }
           } catch {
             // Silent ignore for streaming chunks

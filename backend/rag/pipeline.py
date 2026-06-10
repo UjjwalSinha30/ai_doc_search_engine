@@ -53,8 +53,8 @@ embeddings = HuggingFaceEmbeddings(
 # Splits text into chunks of 1000 characters
 # with 200-character overlap to preserve context
 text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000,
-    chunk_overlap=200,
+    chunk_size=400,
+    chunk_overlap=50,
     length_function=len,
 )
 
@@ -137,16 +137,19 @@ def process_uploaded_file(
             return
         finally:
             db.close()
-            
-    # 4. PREPARE CHROMA DATA
+        
+        # 4. PREPARE CHROMA DATA
         # Metadata helps with citations & debugging
         collection = get_or_create_collection(user_email)
+        collection_name = f"docs_{user_email.replace('@', '_').replace('.', '_')}"
+        print(f"📦 Collection: {collection_name}")
         
         # Generate unique IDs for each chunk
         ids = [str(uuid.uuid4()) for _ in chunks]
         
         # Extract actual text from each chunk
         texts = [chunk.page_content for chunk in chunks]
+        print(f"📝 Prepared {len(texts)} texts for embedding")
 
         metadatas = []
         for i, chunk in enumerate(chunks):
@@ -162,16 +165,24 @@ def process_uploaded_file(
         # 5. EMBED & STORE
         # -----------------------
         # Create embeddings locally and store everything in Chroma
+        print(f"⏳ Creating embeddings for {len(texts)} chunks...")
+        chunk_embeddings = embeddings.embed_documents(texts)
+        print(f"✅ Embeddings created: {len(chunk_embeddings)} vectors")
+        
+        print(f"⏳ Storing in ChromaDB collection '{collection_name}'...")
         collection.add(
             ids=ids,
             documents=texts,
             metadatas=metadatas,
-            embeddings=embeddings.embed_documents(texts),
+            embeddings=chunk_embeddings,
         )
+        print(f"✅ Stored {len(ids)} chunks with IDs and embeddings")
 
         print(f"🎉 SUCCESS: Stored {len(chunks)} chunks for document_id={document_id}")
+        print(f"   User: {user_email}")
+        print(f"   File: {original_filename}")
+        print(f"   Collection: {collection_name}")
 
-        print(f"🎉 Stored {len(chunks)} chunks in Chroma")
 
     except Exception as e:
         print(f"💥 PROCESSING FAILED: {type(e).__name__}: {str(e)}")
