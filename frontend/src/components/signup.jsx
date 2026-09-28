@@ -71,7 +71,7 @@ export default function Signup() {
         {/* Card */}
         <div className="bg-white dark:bg-gray-900 shadow-2xl rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 transform transition-all">
           {/* Header */}
-          <div className="px-10 pt-10 pb-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+          <div className="px-10 pt-10 pb-6 bg-indigo-600 text-white">
             <h2 className="text-3xl font-bold text-center tracking-tight">
               Get Started
             </h2>

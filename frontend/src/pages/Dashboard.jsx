@@ -1,9 +1,23 @@
 import { useState, useRef, useEffect } from "react";
 import HeaderWithUserProfile from "../components/navbar";
 import Sidebar from "../components/sidebar";
-import { Menu, Bell } from "lucide-react";
+import { Menu } from "lucide-react";
 import ChatInput from "../components/ChatInput";
 import { useAuth } from "../context/AuthContext";
+import { API_BASE } from "../api/api";
+
+function MessageLoading() {
+  return (
+    <div className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+      <span>Reading document</span>
+      <span className="flex items-center gap-1">
+        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:0ms]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:150ms]" />
+        <span className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce [animation-delay:300ms]" />
+      </span>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
@@ -17,7 +31,9 @@ export default function Dashboard() {
   const [sessionId, setSessionId] = useState(null);
   
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
   }, [messages]);
 
   if (isLoading) {
@@ -68,7 +84,7 @@ export default function Dashboard() {
     setIsStreaming(true);
 
     try {
-      const response = await fetch("http://localhost:8000/api/chat", {
+      const response = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -175,6 +191,32 @@ export default function Dashboard() {
       : name.charAt(0).toUpperCase() || "??";
   };
 
+  const getSourceSummary = (citations = []) => {
+    const grouped = new Map();
+
+    citations.forEach((cite) => {
+      const source = cite.source || "Unknown source";
+      const rawPage = cite.page;
+      const numericPage = Number(rawPage);
+      const page = Number.isFinite(numericPage) ? numericPage + 1 : rawPage;
+
+      if (!grouped.has(source)) {
+        grouped.set(source, { source, pages: new Set(), count: 0 });
+      }
+
+      const group = grouped.get(source);
+      group.count += 1;
+      if (page !== undefined && page !== null && page !== "?") {
+        group.pages.add(page);
+      }
+    });
+
+    return Array.from(grouped.values()).map((group) => ({
+      ...group,
+      pages: Array.from(group.pages).sort((a, b) => Number(a) - Number(b)),
+    }));
+  };
+
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 overflow-hidden">
       {/* Mobile sidebar overlay */}
@@ -189,7 +231,7 @@ export default function Dashboard() {
       <div
         className={`fixed lg:static inset-y-0 left-0 z-50 w-80 max-w-[85vw] bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 
           transform transition-transform duration-300 ease-in-out lg:translate-x-0
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:w-72`}
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:w-[280px]`}
       >
         <Sidebar
           closeSidebar={() => setSidebarOpen(false)}
@@ -214,11 +256,7 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center gap-4">
-              <button className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                <Bell className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-              </button>
-
-              <button className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all">
+              <button className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold text-sm shadow-md hover:bg-indigo-700 transition-all">
                 {getInitials()}
               </button>
             </div>
@@ -234,15 +272,16 @@ export default function Dashboard() {
         <main className="flex-1 overflow-y-auto px-3 sm:px-5 lg:px-8 py-4 sm:py-6 bg-gradient-to-b from-transparent to-gray-50/50 dark:to-gray-950/50">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center px-4">
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-gray-800 dark:text-gray-100 mb-3">
                 Your Private AI Assistant
               </h2>
-              <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 max-w-md">
+              <p className="text-sm sm:text-[15px] text-gray-600 dark:text-gray-400 max-w-md">
                 Upload your documents
               </p>
             </div>
           ) : (
-            messages.map((msg) => (
+            <div className="mx-auto w-full max-w-3xl">
+            {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex ${
@@ -259,15 +298,15 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div
-                    className={`max-w-[85%] sm:max-w-2xl px-5 py-4 rounded-2xl shadow-sm transition-all duration-200 border border-transparent
+                    className={`max-w-[88%] sm:max-w-2xl px-5 py-4 text-sm sm:text-[15px] leading-relaxed transition-all duration-200
                       ${
                         msg.role === "user"
-                          ? "bg-blue-600 text-white rounded-br-none"
-                          : "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-none"
+                          ? "rounded-2xl rounded-br-md bg-indigo-600 text-white shadow-sm"
+                          : "rounded-2xl rounded-bl-md bg-white dark:bg-gray-900 border border-gray-200/80 dark:border-gray-800 text-gray-900 dark:text-gray-100 shadow-sm"
                       }`}
                   >
-                    <div className="whitespace-pre-wrap text-[15px] leading-relaxed">
-                      {msg.content || (msg.isStreaming && <span className="text-gray-400">Thinking...</span>)}
+                    <div className="whitespace-pre-wrap">
+                      {msg.content || (msg.isStreaming && <MessageLoading />)}
                     </div>
 
                     {msg.file && (
@@ -276,7 +315,7 @@ export default function Dashboard() {
                       </p>
                     )}
 
-                    {msg.isStreaming && (
+                    {msg.isStreaming && msg.content && (
                       <div className="flex gap-1 mt-2">
                         <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:0ms]"></span>
                         <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:150ms]"></span>
@@ -285,23 +324,25 @@ export default function Dashboard() {
                     )}
 
                     {msg.citations?.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-gray-200/60 dark:border-gray-700/50">
-                        <p className="text-xs font-semibold text-gray-400 dark:text-gray-400 mb-2.5 tracking-wide uppercase">
+                      <div className="mt-4 pt-3 border-t border-gray-200/70 dark:border-gray-800">
+                        <p className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 mb-2 tracking-wide uppercase">
                           Sources
                         </p>
-                        <div className="flex flex-wrap gap-2">
-                          {msg.citations.map((cite, i) => (
+                        <div className="flex flex-wrap gap-1.5">
+                          {getSourceSummary(msg.citations).map((cite) => (
                             <span
-                              key={i}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium
-                                         bg-gray-100/80 dark:bg-gray-800/60 text-gray-700 dark:text-gray-300
-                                         rounded-full border border-gray-200/70 dark:border-gray-700/60
-                                         hover:bg-gray-200 dark:hover:bg-gray-700/80 transition-colors
-                                         cursor-pointer"
+                              key={cite.source}
+                              className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400"
                             >
-                              <span className="font-bold opacity-70">[{i+1}]</span>
-                              <span className="truncate max-w-[180px]">{cite.source}</span>
-                              <span className="opacity-60">p.{cite.page}</span>
+                              <span className="truncate max-w-[220px] font-medium text-gray-700 dark:text-gray-300">
+                                {cite.source}
+                              </span>
+                              <span className="text-gray-400 dark:text-gray-500">·</span>
+                              <span className="shrink-0 text-gray-500 dark:text-gray-400">
+                                {cite.pages.length > 0
+                                  ? `p. ${cite.pages.slice(0, 4).join(", ")}${cite.pages.length > 4 ? "+" : ""}`
+                                  : `${cite.count} refs`}
+                              </span>
                             </span>
                           ))}
                         </div>
@@ -310,14 +351,15 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-            ))
+            ))}
+            </div>
           )}
           <div ref={messagesEndRef} />
         </main>
 
         {/* Chat Input - Pass isStreaming and stop handler */}
         <div className="sticky bottom-0 z-30 bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 shadow-lg">
-          <div className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto w-full max-w-3xl">
             <ChatInput 
               onSend={handleNewMessage} 
               isStreaming={isStreaming}

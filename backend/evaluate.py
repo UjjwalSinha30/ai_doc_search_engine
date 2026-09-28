@@ -21,15 +21,17 @@
 import os
 import sys
 import json
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv(r"D:\projects\ai_knowledge_search_engine\ai_knowledge_search_engine\.env")
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 
 from groq import Groq
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 # ─── Import your RAG ──────────────────────────────────────────────────────────
-sys.path.append(r"D:\projects\ai_knowledge_search_engine\ai_knowledge_search_engine\backend")
+sys.path.append(str(BASE_DIR))
 
 from api.helpers import search, rerank_chunks, get_document_chunks, summarize
 from langchain_ollama import ChatOllama
@@ -39,8 +41,8 @@ USER_EMAIL = "l@gmail.com"
 DOCUMENT_ID = 36                       
 
 ollama_llm = ChatOllama(
-    model="qwen2.5:3b",
-    base_url="http://localhost:11434",
+    model=os.getenv("OLLAMA_MODEL", "qwen2.5:3b"),
+    base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
     temperature=0.1
 )
 
@@ -85,7 +87,7 @@ Respond ONLY in this JSON format with no explanation:
 }}"""
 
     response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
+        model=os.getenv("GROQ_EVAL_MODEL", "llama-3.3-70b-versatile"),
         messages=[{"role": "user", "content": prompt}],
         temperature=0
     )

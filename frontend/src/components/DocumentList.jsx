@@ -8,6 +8,7 @@ import {
   FileSpreadsheet, 
   FileCode 
 } from "lucide-react";
+import { API_BASE } from "../api/api";
 
 export default function DocumentList({ 
   onDocumentSelect, 
@@ -25,7 +26,7 @@ export default function DocumentList({
     setError(null);
     
     try {
-      const res = await fetch("http://localhost:8000/api/documents", {
+      const res = await fetch(`${API_BASE}/api/documents`, {
         credentials: "include",
       });
 
@@ -55,7 +56,7 @@ export default function DocumentList({
     setDeletingId(docId);
 
     try {
-      const res = await fetch(`http://localhost:8000/api/documents/${docId}`, {
+      const res = await fetch(`${API_BASE}/api/documents/${docId}`, {
         method: "DELETE",
         credentials: "include",
       });

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 import { X } from "lucide-react";
+import { API_BASE } from "../api/api";
 
 // Required for react-pdf
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
@@ -12,7 +13,7 @@ export default function PdfViewer({ doc, onClose }) {
 
   if (!doc) return null;
 
-  const pdfUrl = `http://localhost:8000/api/documents/${doc.id}/view`;
+  const pdfUrl = `${API_BASE}/api/documents/${doc.id}/view`;
 
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">

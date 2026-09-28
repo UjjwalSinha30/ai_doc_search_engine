@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Optional subtle background pattern */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(59,130,246,0.08)_0%,transparent_50%)] pointer-events-none" />
 
@@ -10,7 +10,7 @@ export default function Home() {
         {/* Logo / Brand */}
         <div className="space-y-4">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+            <span className="text-indigo-700">
               AI Search Engine
             </span>
           </h1>
@@ -25,10 +25,10 @@ export default function Home() {
           <Link
             to="/login"
             className="group relative inline-flex items-center justify-center px-8 py-4 
-                     text-lg font-semibold text-white bg-blue-600 rounded-xl 
-                     shadow-lg shadow-blue-200/50 hover:shadow-xl hover:shadow-blue-300/50 
+                     text-lg font-semibold text-white bg-indigo-600 rounded-xl 
+                     shadow-lg shadow-indigo-200/50 hover:shadow-xl hover:shadow-indigo-300/50 
                      transition-all duration-300 hover:-translate-y-0.5 focus:outline-none 
-                     focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                     focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >
             Sign In
             <span className="ml-2 transition-transform group-hover:translate-x-1">→</span>
@@ -37,10 +37,10 @@ export default function Home() {
           <Link
             to="/signup"
             className="inline-flex items-center justify-center px-8 py-4 text-lg font-semibold 
-                     text-blue-700 bg-white border-2 border-blue-200 rounded-xl 
-                     hover:bg-blue-50 hover:border-blue-300 transition-all duration-300 
+                     text-indigo-700 bg-white border-2 border-indigo-200 rounded-xl 
+                     hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-300 
                      hover:-translate-y-0.5 focus:outline-none focus:ring-2 
-                     focus:ring-blue-400 focus:ring-offset-2"
+                     focus:ring-indigo-400 focus:ring-offset-2"
           >
             Create Account
           </Link>

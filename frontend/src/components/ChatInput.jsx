@@ -8,8 +8,8 @@ import {
   Square,
   FileText,
   Sparkles,
-  AlertCircle
 } from "lucide-react";
+import { API_BASE } from "../api/api";
 
 export default function ChatInput({ 
   onSend, 
@@ -19,26 +19,26 @@ export default function ChatInput({
   const [input, setInput] = useState("");
   const [uploadStatus, setUploadStatus] = useState(null);
   const [uploadedFileName, setUploadedFileName] = useState("");
-  const [rows, setRows] = useState(1);
   const [showUploadHint, setShowUploadHint] = useState(false);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // Auto-grow textarea
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!isStreaming) {
+      textareaRef.current?.focus();
+    }
+  }, [isStreaming]);
+
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-
-    const handleInput = () => {
-      textarea.style.height = "auto";
-      const newRows = Math.min(Math.max(Math.ceil(textarea.scrollHeight / 24), 1), 6);
-      setRows(newRows);
-      textarea.style.height = `${textarea.scrollHeight}px`;
-    };
-
-    textarea.addEventListener("input", handleInput);
-    return () => textarea.removeEventListener("input", handleInput);
-  }, []);
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+  }, [input]);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -61,7 +61,7 @@ export default function ChatInput({
     formData.append("file", file);
 
     try {
-      const response = await fetch("http://localhost:8000/api/upload", {
+      const response = await fetch(`${API_BASE}/api/upload`, {
         method: "POST",
         credentials: "include",
         body: formData,
@@ -106,20 +106,19 @@ export default function ChatInput({
     if (!input.trim() || isStreaming) return;
     onSend?.(input.trim());
     setInput("");
-    setRows(1);
+    requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
   return (
     <div className="
       border-t border-gray-200/80 dark:border-gray-800/60
-      bg-gradient-to-t from-white via-white/95 to-white/90
-      dark:from-gray-950 dark:via-gray-950/95 dark:to-gray-900/90
+      bg-white/95 dark:bg-gray-950/95
       backdrop-blur-xl
       shadow-[0_-8px_30px_-8px_rgba(0,0,0,0.1)] 
       dark:shadow-[0_-8px_30px_-8px_rgba(0,0,0,0.4)]
       transition-all duration-300
     ">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-5 sm:py-6">
+      <div className="max-w-4xl mx-auto px-4 py-3">
         
         {/* Upload Status */}
         {uploadStatus && (
@@ -176,7 +175,16 @@ export default function ChatInput({
         )}
 
         {/* Main Input Area */}
-        <div className="relative flex items-end gap-3 sm:gap-4">
+        <div
+          className="
+            relative flex items-end gap-2 rounded-2xl border border-gray-200
+            bg-white px-3 py-2 shadow-sm transition-all duration-200
+            focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-500/10
+            dark:border-gray-800 dark:bg-gray-900
+          "
+          onMouseDown={() => textareaRef.current?.focus()}
+          onClick={() => textareaRef.current?.focus()}
+        >
 
           {/* Upload Button */}
           <div 
@@ -194,19 +202,19 @@ export default function ChatInput({
                 disabled={isStreaming || uploadStatus === "uploading"}
               />
               <div className={`
-                flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14
-                rounded-2xl transition-all duration-200
+                flex h-9 w-9 items-center justify-center
+                rounded-lg transition-all duration-200
                 ${isStreaming || uploadStatus === "uploading"
                   ? "opacity-40 cursor-not-allowed" 
                   : "hover:scale-105 active:scale-95"
                 }
                 ${uploadStatus === "uploading" 
                   ? "bg-blue-50 dark:bg-blue-950/40 ring-2 ring-blue-400/50" 
-                  : "bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-800 dark:to-gray-800/60 hover:from-indigo-50 hover:to-purple-50 dark:hover:from-indigo-950/40 dark:hover:to-purple-950/40 shadow-lg hover:shadow-xl"
+                  : "text-gray-500 hover:bg-gray-100 hover:text-indigo-600 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-indigo-400"
                 }
               `}>
                 <Paperclip className={`
-                  w-6 h-6 transition-colors
+                  w-5 h-5 transition-colors
                   ${uploadStatus === "uploading"
                     ? "text-blue-600 dark:text-blue-400"
                     : "text-gray-500 dark:text-gray-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
@@ -239,7 +247,10 @@ export default function ChatInput({
           </div>
 
           {/* Textarea */}
-          <div className="flex-1 relative min-w-0">
+          <div
+            className="relative min-w-0 flex-1"
+            onClick={() => textareaRef.current?.focus()}
+          >
             <textarea
               ref={textareaRef}
               value={input}
@@ -252,20 +263,17 @@ export default function ChatInput({
               }}
               placeholder={isStreaming ? "AI is thinking..." : "Type your message..."}
               disabled={isStreaming}
-              rows={rows}
+              rows={1}
               className={`
-                w-full resize-none rounded-2xl px-5 sm:px-6 py-4 text-base
-                bg-white dark:bg-gray-900/70
-                border-2 border-gray-200 dark:border-gray-800
-                shadow-inner
-                focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 focus:shadow-xl
+                block w-full resize-none bg-transparent px-1 py-2 text-sm
+                focus:outline-none
                 placeholder:text-gray-400 dark:placeholder:text-gray-500
                 text-gray-900 dark:text-gray-100
                 transition-all duration-200
                 disabled:opacity-60 disabled:cursor-not-allowed
                 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600
               `}
-              style={{ minHeight: "56px", maxHeight: "160px" }}
+              style={{ minHeight: "40px", maxHeight: "120px" }}
             />
 
             {isStreaming && (
@@ -290,15 +298,14 @@ export default function ChatInput({
               onClick={onStop}
               title="Stop generation"
               className="
-                flex-shrink-0 flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14
-                rounded-2xl bg-gradient-to-br from-red-500 to-rose-600
-                hover:from-red-600 hover:to-rose-700
-                active:scale-95 shadow-xl shadow-red-500/30
+                flex h-9 w-9 flex-shrink-0 items-center justify-center
+                rounded-lg bg-red-600
+                hover:bg-red-700
+                active:scale-95 shadow-sm
                 transition-all duration-200 group
-                ring-2 ring-red-400/30
               "
             >
-              <Square className="w-5 h-5 text-white fill-white group-hover:scale-110 transition-transform" />
+              <Square className="w-4 h-4 text-white fill-white group-hover:scale-110 transition-transform" />
             </button>
           ) : (
             <button
@@ -306,17 +313,17 @@ export default function ChatInput({
               disabled={!input.trim()}
               title="Send message (Enter)"
               className={`
-                flex-shrink-0 flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14
-                rounded-2xl transition-all duration-200 group
+                flex h-9 w-9 flex-shrink-0 items-center justify-center
+                rounded-lg transition-all duration-200 group
                 ${input.trim()
-                  ? "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 shadow-xl shadow-indigo-500/30 ring-2 ring-indigo-400/30"
+                  ? "bg-indigo-600 hover:bg-indigo-700 shadow-sm"
                   : "bg-gray-200 dark:bg-gray-800 cursor-not-allowed opacity-50"
                 }
                 active:scale-95
               `}
             >
               <Send className={`
-                w-5 h-5 text-white transition-transform
+                w-4 h-4 text-white transition-transform
                 ${input.trim() ? 'group-hover:translate-x-0.5 group-hover:-translate-y-0.5' : ''}
               `} />
             </button>
@@ -324,7 +331,7 @@ export default function ChatInput({
         </div>
 
         {/* Bottom hints */}
-        <div className="mt-4 flex items-center justify-between text-xs">
+        <div className="hidden">
           <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
             <span className="flex items-center gap-1.5">
               <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-gray-600 dark:text-gray-300 font-mono text-[10px] border border-gray-300 dark:border-gray-700">
@@ -342,7 +349,6 @@ export default function ChatInput({
           </div>
           
           <div className="flex items-center gap-2 text-gray-400 dark:text-gray-500">
-            <AlertCircle className="w-3.5 h-3.5" />
             <span>PDF, DOCX, TXT, MD, CSV • max 50MB</span>
           </div>
         </div>

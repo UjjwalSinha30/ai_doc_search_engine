@@ -57,11 +57,11 @@ export default function Login() {
         {/* Card */}
         <div className="bg-white dark:bg-gray-900 shadow-2xl rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 transform transition-all">
           {/* Header */}
-          <div className="px-10 pt-10 pb-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+          <div className="px-10 pt-10 pb-6 bg-indigo-600 text-white">
             <h2 className="text-3xl font-bold text-center tracking-tight">
               Welcome back
             </h2>
-            <p className="mt-2 text-center text-blue-100 opacity-90">
+            <p className="mt-2 text-center text-indigo-100 opacity-90">
               Sign in to continue to your dashboard
             </p>
           </div>
@@ -95,7 +95,7 @@ export default function Login() {
                     className="block w-full pl-10 pr-4 py-3.5 border border-gray-300 dark:border-gray-600 
                              rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 
                              placeholder-gray-400 dark:placeholder-gray-500
-                             focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
+                             focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 
                              transition-all duration-200"
                     placeholder="Email address"
                   />
@@ -122,7 +122,7 @@ export default function Login() {
                     className="block w-full pl-10 pr-12 py-3.5 border border-gray-300 dark:border-gray-600 
                              rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 
                              placeholder-gray-400 dark:placeholder-gray-500
-                             focus:ring-2 focus:ring-blue-500 focus:border-blue-500 
+                             focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 
                              transition-all duration-200"
                     placeholder="Password"
                   />
@@ -146,11 +146,11 @@ export default function Login() {
                 disabled={isLoading}
                 className={`w-full flex justify-center items-center gap-3 py-3.5 px-4 
                           rounded-lg text-white font-medium shadow-md
-                          transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+                          transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
                           ${
                             isLoading
-                              ? 'bg-blue-400 cursor-not-allowed'
-                              : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+                              ? 'bg-indigo-400 cursor-not-allowed'
+                              : 'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800'
                           }`}
               >
                 {isLoading ? (
@@ -190,7 +190,7 @@ export default function Login() {
               </span>
               <Link
                 to="/signup"
-                className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition"
+                className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 transition"
               >
                 Create one now
               </Link>

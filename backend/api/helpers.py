@@ -82,7 +82,7 @@ def search(
         print(f"📊 Collection '{collection_name}' has {collection_count} total chunks")
     except Exception as e:
         print(f"⚠️ Could not count collection: {e}")
-    
+
     where_clause = {"document_id": document_id} if document_id is not None else None
     
     # ── 1. Dense retrieval (vector search)
@@ -121,7 +121,6 @@ def search(
     # Debug: Log top distances
     print(f"🔍 Vector search for query '{query}': retrieved {len(docs)} documents")
     print(f"   Top 5 distances: {[f'{d:.3f}' for d in distances[:5]]}")
-
     for doc, meta, dist in zip(docs, metas, distances):
         if dist <= DISTANCE_THRESHOLD:
             filtered_docs.append(doc)
@@ -165,7 +164,6 @@ def search(
     sorted_metas = [filtered_metas[i] for i in sorted_indices]
 
     return sorted_docs, sorted_metas
-
 
 def get_document_chunks(
     document_id: int | None = None,
