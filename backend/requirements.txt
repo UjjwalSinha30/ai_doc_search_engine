@@ -16,7 +16,6 @@ python_jose==3.5.0
 rank_bm25==0.2.2
 sentence_transformers==5.2.0
 SQLAlchemy==2.0.45
-torch==2.9.1
 pymysql
 pydantic[email]
 python-multipart

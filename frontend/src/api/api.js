@@ -7,3 +7,6 @@ const api = axios.create({
 });
 
 export default api;
+
+// so locally this becomes: http://localhost:8000/api
+// ex: fetch(`${API_BASE}/api/chat`)

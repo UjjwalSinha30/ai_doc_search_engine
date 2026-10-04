@@ -1,16 +1,62 @@
-# React + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite frontend for the AI Knowledge Search Engine.
 
-Currently, two official plugins are available:
+## Local Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Create `frontend/.env`:
 
-## React Compiler
+```env
+VITE_API_BASE_URL=http://localhost:8000
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Install dependencies and run Vite:
 
-## Expanding the ESLint configuration
+```powershell
+npm install
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Open:
+
+```text
+http://localhost:5173
+```
+
+In local mode, frontend API calls go directly to the FastAPI backend:
+
+```text
+http://localhost:8000/api/*
+```
+
+## Docker
+
+In Docker, the frontend is built into static files and served by Nginx.
+
+The browser opens:
+
+```text
+http://localhost
+```
+
+React calls relative API URLs:
+
+```text
+/api/chat
+/api/upload
+/api/documents
+```
+
+Nginx proxies those requests to the backend container:
+
+```text
+/api/* -> http://backend:8000/api/*
+```
+
+For Docker, `VITE_API_BASE_URL` should be empty:
+
+```env
+VITE_API_BASE_URL=
+```
+
+This keeps the frontend using the same host as the browser and lets Nginx route API requests internally.
