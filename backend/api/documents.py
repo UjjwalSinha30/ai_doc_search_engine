@@ -157,3 +157,30 @@ def delete_document(
         db.rollback()
         print(f"❌ Delete failed: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
+
+
+@router.get("/documents/{doc_id}/status")
+def get_document_status(
+    doc_id: int,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.email == current_user["email"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    doc = db.query(Document).filter(
+        Document.id == doc_id,
+        Document.user_id == user.id
+    ).first()
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return {
+        "document_id": doc.id,
+        "status": doc.status,
+        "error_message": doc.error_message,
+        "page_count": doc.page_count,
+        "chunk_count": doc.chunk_count,
+    }

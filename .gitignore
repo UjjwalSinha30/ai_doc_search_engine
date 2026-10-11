@@ -62,3 +62,5 @@ backend/uploaded_files/
 
 # Local scratch files
 test_key.py
+output/
+tmp/

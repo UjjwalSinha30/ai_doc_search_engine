@@ -1,6 +1,6 @@
 # AI Knowledge Search Engine
 
-A RAG application for uploading documents and chatting with their content using a local Ollama model. The app includes document ingestion, vector search, reranking, streaming chat responses, source citations, multi-turn memory, and LangSmith tracing.
+A RAG application for uploading documents and chatting with their content using a local Ollama model. The app includes Redis-backed background document ingestion, vector search, reranking, streaming chat responses, source citations, multi-turn memory, and LangSmith tracing.
 
 <p align="center">
   <img src="frontend/public/assets/screenshot(23).png" alt="App Screenshot" width="800"/>
@@ -23,7 +23,8 @@ A RAG application for uploading documents and chatting with their content using 
 - Per-user document/vector isolation
 - Streaming responses with source citations
 - LangSmith tracing support
-- Docker setup for frontend, backend, and MySQL
+- Redis and RQ queue for background document ingestion
+- Docker setup for frontend, backend, MySQL, and Redis
 - Ollama runs locally on the host machine
 
 ## Tech Stack
@@ -34,6 +35,7 @@ A RAG application for uploading documents and chatting with their content using 
 | Frontend Docker Server | Nginx |
 | Backend | FastAPI, LangChain, SQLAlchemy |
 | Database | MySQL |
+| Background Jobs | Redis, RQ |
 | Vector Store | ChromaDB |
 | Embeddings | sentence-transformers/all-MiniLM-L6-v2 |
 | Reranker | BAAI/bge-reranker-v2-m3 |
@@ -52,11 +54,13 @@ Browser
   -> http://localhost:8000/api/*
   -> FastAPI backend
   -> MySQL at localhost:3306
+  -> Redis at localhost:6379 for RQ ingestion jobs
+  -> RQ worker processes uploads
   -> Chroma local storage
   -> Ollama at localhost:11434
 ```
 
-In local mode, Vite serves the frontend and FastAPI runs directly in your Python environment.
+In local mode, Vite serves the frontend, FastAPI runs directly in your Python environment, Redis stores ingestion jobs, and an RQ worker processes uploaded documents in the background.
 
 ### Docker
 
@@ -67,6 +71,7 @@ Browser
   -> React calls /api/*
   -> Nginx proxies /api/* to http://backend:8000
   -> FastAPI backend container
+  -> Redis container queues ingestion jobs
   -> MySQL container at mysql:3306
   -> Chroma Docker volume
   -> Ollama on Windows host at host.docker.internal:11434
@@ -78,9 +83,21 @@ Docker Compose runs:
 rag_frontend  -> React build served by Nginx on port 80
 rag-backend   -> FastAPI on port 8000
 rag_mysql     -> MySQL on port 3306
+rag_redis     -> Redis queue on port 6379
 ```
 
 Ollama is not started by Docker in the current setup. It should run locally on the host.
+
+Document upload flow:
+
+```text
+User uploads document
+  -> FastAPI validates and saves file metadata in MySQL
+  -> FastAPI enqueues ingestion job in Redis
+  -> RQ worker extracts text, chunks content, creates embeddings
+  -> Chunks and embeddings are stored in ChromaDB
+  -> Chat can retrieve from ChromaDB, combine with BM25, rerank, and answer with Ollama
+```
 
 ## Environment Files
 
@@ -98,6 +115,7 @@ Local backend example:
 
 ```env
 DATABASE_URL=mysql+pymysql://root:@localhost:3306/newdatabase
+REDIS_URL=redis://localhost:6379/0
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=qwen2.5:3b
 LANGSMITH_TRACING=true
@@ -111,6 +129,7 @@ Docker backend example:
 
 ```env
 DATABASE_URL=mysql+pymysql://root:password123@mysql:3306/newdatabase
+REDIS_URL=redis://redis:6379/0
 OLLAMA_BASE_URL=http://host.docker.internal:11434
 OLLAMA_MODEL=qwen2.5:3b
 ```
@@ -142,6 +161,14 @@ Start the backend:
 cd backend
 .\venv\Scripts\activate
 python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Start the Redis/RQ worker in another backend terminal:
+
+```powershell
+cd backend
+.\venv\Scripts\activate
+rq worker ingestion --url redis://localhost:6379/0
 ```
 
 Start the frontend:
@@ -201,6 +228,8 @@ Check containers:
 ```powershell
 docker compose ps
 ```
+
+Important: Redis stores ingestion jobs, but document processing also needs an RQ worker process. If the worker is not running, uploads can stay in `processing`.
 
 Stop containers:
 
@@ -271,6 +300,7 @@ Examples:
 │   ├── api/              # Chat, auth, upload, document endpoints
 │   ├── db/               # Database connection
 │   ├── rag/              # Ingestion and vector pipeline
+│   ├── worker/           # Redis/RQ queue and ingestion jobs
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   └── main.py

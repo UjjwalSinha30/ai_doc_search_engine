@@ -74,19 +74,10 @@ def search(
     Returns: (documents, metadatas) sorted by hybrid relevance
     """
     collection = get_or_create_collection(user_email)
-    collection_name = f"docs_{user_email.replace('@', '_').replace('.', '_')}"
-    
-    # Debug: Check collection state
-    try:
-        collection_count = collection.count()
-        print(f"📊 Collection '{collection_name}' has {collection_count} total chunks")
-    except Exception as e:
-        print(f"⚠️ Could not count collection: {e}")
-
     where_clause = {"document_id": document_id} if document_id is not None else None
     
     # ── 1. Dense retrieval (vector search)
-    DENSE_CANDIDATES = 120  # enough for hybrid + reranking
+    DENSE_CANDIDATES = 20  # enough for hybrid + reranking
 
     results = collection.query(
         query_texts=[query],
@@ -100,10 +91,6 @@ def search(
     distances = results["distances"][0] if results.get("distances") else []
 
     if not docs:
-        print(f"⚠️ Vector search returned 0 documents for query: '{query}'")
-        print(f"   Query: '{query}'")
-        print(f"   Collection: {collection_name}")
-        print(f"   Document filter: {where_clause if where_clause else 'None (searching all)'}")
         return [], []
     
     # Add distance threshold for vector search
@@ -118,20 +105,13 @@ def search(
     filtered_metas = []
     filtered_distances = []
 
-    # Debug: Log top distances
-    print(f"🔍 Vector search for query '{query}': retrieved {len(docs)} documents")
-    print(f"   Top 5 distances: {[f'{d:.3f}' for d in distances[:5]]}")
     for doc, meta, dist in zip(docs, metas, distances):
         if dist <= DISTANCE_THRESHOLD:
             filtered_docs.append(doc)
             filtered_metas.append(meta)
             filtered_distances.append(dist)
 
-    print(f"   After threshold {DISTANCE_THRESHOLD}: {len(filtered_docs)} documents passed")
-
     if not filtered_docs:
-        print(f"⚠️ No documents within distance threshold {DISTANCE_THRESHOLD} for query: '{query}'")
-        print(f"   Hint: Increase DISTANCE_THRESHOLD or check if documents were indexed correctly")
         return [], []        
     
     # ── 2. BM25 keyword scoring on dense candidates

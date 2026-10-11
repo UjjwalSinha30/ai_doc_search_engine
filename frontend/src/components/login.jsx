@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { AlertCircle, Eye, EyeOff, Loader2, Mail, Lock } from 'lucide-react';
+import AuthLayout from './AuthLayout';
+import AuthField from './AuthField';
 
 export default function Login() {
   const [formData, setFormData] = useState({
@@ -25,6 +27,12 @@ export default function Login() {
     if (error) setError('');
   };
 
+  const canSubmit = Boolean(
+    formData.email.trim() &&
+    formData.password.trim() &&
+    !isLoading
+  );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -36,8 +44,10 @@ export default function Login() {
     } catch (err) {
       // Better Firebase error handling
       let message = 'An error occurred. Please try again.';
-      
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+
+      if (err.response?.data?.detail) {
+        message = err.response.data.detail;
+      } else if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
         message = 'Invalid email or password';
       } else if (err.code === 'auth/too-many-requests') {
         message = 'Too many attempts. Please try again later.';
@@ -52,152 +62,76 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
-        {/* Card */}
-        <div className="bg-white dark:bg-gray-900 shadow-2xl rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 transform transition-all">
-          {/* Header */}
-          <div className="px-10 pt-10 pb-6 bg-indigo-600 text-white">
-            <h2 className="text-3xl font-bold text-center tracking-tight">
-              Welcome back
-            </h2>
-            <p className="mt-2 text-center text-indigo-100 opacity-90">
-              Sign in to continue to your dashboard
-            </p>
-          </div>
-
-          {/* Form */}
-          <div className="px-10 pb-10 pt-8">
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm text-center">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="sr-only">
-                  Email address
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="block w-full pl-10 pr-4 py-3.5 border border-gray-300 dark:border-gray-600 
-                             rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 
-                             placeholder-gray-400 dark:placeholder-gray-500
-                             focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 
-                             transition-all duration-200"
-                    placeholder="Email address"
-                  />
-                </div>
-              </div>
-
-              {/* Password */}
-              <div>
-                <label htmlFor="password" className="sr-only">
-                  Password
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    required
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="block w-full pl-10 pr-12 py-3.5 border border-gray-300 dark:border-gray-600 
-                             rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 
-                             placeholder-gray-400 dark:placeholder-gray-500
-                             focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 
-                             transition-all duration-200"
-                    placeholder="Password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
-                    ) : (
-                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Submit */}
-              <button
-                type="submit"
-                disabled={isLoading}
-                className={`w-full flex justify-center items-center gap-3 py-3.5 px-4 
-                          rounded-lg text-white font-medium shadow-md
-                          transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
-                          ${
-                            isLoading
-                              ? 'bg-indigo-400 cursor-not-allowed'
-                              : 'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800'
-                          }`}
-              >
-                {isLoading ? (
-                  <>
-                    <svg
-                      className="animate-spin h-5 w-5 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    Signing in...
-                  </>
-                ) : (
-                  'Sign in'
-                )}
-              </button>
-            </form>
-
-            {/* Footer */}
-            <div className="mt-8 text-center text-sm">
-              <span className="text-gray-600 dark:text-gray-400">
-                Don't have an account?{' '}
-              </span>
-              <Link
-                to="/signup"
-                className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 transition"
-              >
-                Create one now
-              </Link>
-            </div>
-          </div>
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Access your private document workspace."
+    >
+      {error && (
+        <div role="alert" className="mb-5 flex gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{error}</span>
         </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <AuthField
+          id="email"
+          label="Email"
+          icon={Mail}
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          value={formData.email}
+          onChange={handleChange}
+          placeholder="you@example.com"
+        />
+
+        <AuthField
+          id="password"
+          label="Password"
+          icon={Lock}
+          name="password"
+          type={showPassword ? 'text' : 'password'}
+          autoComplete="current-password"
+          required
+          value={formData.password}
+          onChange={handleChange}
+          placeholder="Enter your password"
+          rightElement={
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          }
+        />
+
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-gray-700"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Signing in...
+            </>
+          ) : (
+            "Sign in"
+          )}
+        </button>
+      </form>
+
+      <div className="mt-6 text-center text-sm">
+        <span className="text-gray-600 dark:text-gray-400">Don't have an account? </span>
+        <Link to="/signup" className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400">
+          Create one
+        </Link>
       </div>
-    </div>
+    </AuthLayout>
   );
 }

@@ -22,3 +22,5 @@ python-multipart
 pypdf
 datasets
 ragas
+redis
+rq

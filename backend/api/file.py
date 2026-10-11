@@ -11,6 +11,8 @@ from models.document import Document
 from models.models import User
 import uuid
 import logging
+from worker.queue import ingestion_queue
+from worker.jobs import ingest_document_job
 
 # Set up proper logging
 logging.basicConfig(level=logging.INFO)
@@ -135,13 +137,21 @@ async def upload_file(
             
         # Step 7: Start background processing
         logger.info("Starting background processing task...")
-        background_tasks.add_task(
-            process_uploaded_file,
-            file_path=file_path,
-            original_filename=file.filename,
-            user_email=user.email,
-            file_hash=file_hash,
-            document_id=document_id
+        # background_tasks.add_task(
+        #     process_uploaded_file,
+        #     file_path=file_path,
+        #     original_filename=file.filename,
+        #     user_email=user.email,
+        #     file_hash=file_hash,
+        #     document_id=document_id
+        # )
+        ingestion_queue.enqueue(
+            ingest_document_job,
+            file_path,
+            file.filename,
+            user.email,
+            file_hash,
+            document_id,
         )    
         
         logger.info(f"🎉 Upload complete for document ID: {document_id}")

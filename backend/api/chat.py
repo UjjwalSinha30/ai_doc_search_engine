@@ -69,30 +69,34 @@ def rag_search_base(
     user_email: str | None = None,
 ) -> str:
     if not user_email:
-        return "Error: User not authenticated."
+        return "Error: User not authenticated.", []
 
     if is_overview_query(query):
-        docs, _ = get_document_chunks(document_id=document_id, user_email=user_email)
+        docs, metas = get_document_chunks(document_id=document_id, user_email=user_email)
         if docs:
-            return summarize(docs, max_length=1200)
+            summary_docs = docs[:6]
+            summary_metas = metas[:6]
+            return summarize(docs, max_length=1200), build_citations(summary_docs, summary_metas)
 
     docs, metas = search(query=query, document_id=document_id, user_email=user_email)
     logger.info("Raw retrieval: %s chunks for query '%s'", len(docs), query)
     if not docs:
-        return "No relevant information found."
+        return "No relevant information found.", []
 
-    reranked_docs, _ = rerank_chunks(
+    reranked_docs, reranked_metas = rerank_chunks(
         query=query,
-        chunks=docs,
-        metadatas=metas,
-        top_k=6,
+        chunks=docs[:12],
+        metadatas=metas[:12],
+        top_k=4,
         threshold=0.3,
     )
     if not reranked_docs:
         logger.info("Reranker returned no chunks; falling back to top retrieved chunks.")
-        return "\n\n".join(docs[:6])
+        fallback_docs = docs[:4]
+        fallback_metas = metas[:4]
+        return "\n\n".join(fallback_docs), build_citations(fallback_docs, fallback_metas)
 
-    return "\n\n".join(reranked_docs)
+    return "\n\n".join(reranked_docs), build_citations(reranked_docs, reranked_metas)
 
 
 def rag_summarize_base(
@@ -102,7 +106,7 @@ def rag_summarize_base(
     if not user_email:
         return "Error: User not authenticated."
 
-    docs, _ = get_document_chunks(document_id=document_id, user_email=user_email)
+    docs, metas = get_document_chunks(document_id=document_id, user_email=user_email)
     return summarize(docs)
 
 
@@ -328,36 +332,88 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
                 if docs:
                     used_documents = True
                     final_citations = build_citations(docs, metas)
-                    context = summarize(docs, max_length=3000)
-                    overview_response = llm.invoke(
-                        [
-                            SystemMessage(
-                                content=(
-                                    "Answer the user's question using only the provided document context. "
-                                    "Do not mention tools, function calls, JSON, or implementation details. "
-                                    "For follow-up requests, expand on the previous answer with concrete details from the context."
-                                )
-                            ),
-                            HumanMessage(
-                                content=(
-                                    f"Question: {request.message}\n\n"
-                                    f"Document context:\n{context}"
-                                )
-                            ),
-                        ]
-                    )
-                    content = (
-                        overview_response.content
-                        if hasattr(overview_response, "content")
-                        else str(overview_response)
-                    )
-                    messages.append(AIMessage(content=content))
+                    context = summarize(docs, max_length=1800)
+                    overview_messages = [
+                        SystemMessage(
+                            content=(
+                                "Answer the user's question using only the provided document context. "
+                                "Do not mention tools, function calls, JSON, or implementation details. "
+                                "For follow-up requests, expand on the previous answer with concrete details from the context."
+                            )
+                        ),
+                        HumanMessage(
+                            content=(
+                                f"Question: {request.message}\n\n"
+                                f"Document context:\n{context}"
+                            )
+                        ),
+                    ]
 
-                    for word in content.split():
-                        yield f"data: {json.dumps({'content': word + ' '})}\n\n"
+                    content_parts = []
+                    for chunk in llm.stream(overview_messages):
+                        if chunk.content:
+                            content_parts.append(chunk.content)
+                            yield f"data: {json.dumps({'content': chunk.content})}\n\n"
+
+                    content = "".join(content_parts).strip()
+                    if not content:
+                        content = "I don't have that information in your documents."
+                        yield f"data: {json.dumps({'content': content})}\n\n"
+
+                    messages.append(AIMessage(content=content))
 
                     yield f"data: {json.dumps({'citations': final_citations})}\n\n"
                     return
+
+            if request.document_id is not None:
+                context, final_citations = rag_search_base(
+                    query=request.message,
+                    document_id=request.document_id,
+                    user_email=user_email,
+                )
+
+                if (
+                    not context.strip()
+                    or context == "No relevant information found."
+                    or context.startswith("Error:")
+                ):
+                    content = "I don't have information about that in your uploaded documents."
+                    messages.append(AIMessage(content=content))
+                    yield f"data: {json.dumps({'content': content})}\n\n"
+                    yield f"data: {json.dumps({'citations': []})}\n\n"
+                    return
+
+                used_documents = True
+                direct_rag_messages = [
+                    SystemMessage(
+                        content=(
+                            "Answer only the user's current question using only the retrieved document context. "
+                            "If the context contains example questions or unrelated questions, ignore them. "
+                            "Do not answer questions the user did not ask."
+                        )
+                    ),
+                    HumanMessage(
+                        content=(
+                            f"Question: {request.message}\n\n"
+                            f"Retrieved document context:\n{context}"
+                        )
+                    ),
+                ]
+
+                content_parts = []
+                for chunk in llm.stream(direct_rag_messages):
+                    if chunk.content:
+                        content_parts.append(chunk.content)
+                        yield f"data: {json.dumps({'content': chunk.content})}\n\n"
+
+                content = "".join(content_parts).strip()
+                if not content:
+                    content = "I don't have information about that in your uploaded documents."
+                    yield f"data: {json.dumps({'content': content})}\n\n"
+
+                messages.append(AIMessage(content=content))
+                yield f"data: {json.dumps({'citations': final_citations})}\n\n"
+                return
 
             for chunk in model_with_tools.stream(messages):
                 if chunk.content:
@@ -385,19 +441,9 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
                         if tool_name == "rag_search":
                             if not cleaned_args.get("query"):
                                 result = "Error: Search query cannot be empty. Please provide a search term."
+                                final_citations = []
                             else:
-                                result = execute_rag_search(cleaned_args)
-                                docs, metas = search(**cleaned_args, user_email=user_email)
-                                reranked_docs, reranked_metas = rerank_chunks(
-                                    query=cleaned_args.get("query", ""),
-                                    chunks=docs,
-                                    metadatas=metas,
-                                    top_k=6,
-                                )
-                                final_citations = build_citations(
-                                    reranked_docs,
-                                    reranked_metas,
-                                )
+                                result, final_citations = execute_rag_search(cleaned_args)
                         elif tool_name == "rag_summarize":
                             result = execute_rag_summarize(cleaned_args)
                         elif tool_name == "rag_extract":
@@ -428,22 +474,18 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
 
             if tool_call_results:
                 logger.info("Generating final answer")
-                final_response = llm.invoke(messages)
+                content_parts = []
+                for chunk in llm.stream(messages):
+                    if chunk.content:
+                        content_parts.append(chunk.content)
+                        yield f"data: {json.dumps({'content': chunk.content})}\n\n"
 
-                if hasattr(final_response, "content"):
-                    content = final_response.content
-                elif isinstance(final_response, str):
-                    content = final_response
-                else:
-                    content = str(final_response)
-
+                content = "".join(content_parts).strip()
                 if not content.strip():
                     content = "I don't have that information in your documents."
+                    yield f"data: {json.dumps({'content': content})}\n\n"
 
                 messages.append(AIMessage(content=content))
-
-                for word in content.split():
-                    yield f"data: {json.dumps({'content': word + ' '})}\n\n"
 
             if used_documents and final_citations:
                 yield f"data: {json.dumps({'citations': final_citations})}\n\n"

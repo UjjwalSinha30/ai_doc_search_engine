@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Cookie, HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from models.models import User
 from schema.schemas import UserCreate
@@ -14,6 +15,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)
 
 def _truncate_password_to_72(password: str) -> str:
     """
@@ -104,15 +106,25 @@ def create_refresh_token(data: dict):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def verify_token(token: str = Cookie(None, alias="refresh_token")):
-    if not token:
-        raise HTTPException(status_code=401, detail="No token")
+def decode_token(token: str) -> dict:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-def get_current_user(token_data: dict = Depends(verify_token)):
+def verify_token(token: str = Cookie(None, alias="refresh_token")):
+    if not token:
+        raise HTTPException(status_code=401, detail="No token")
+    return decode_token(token)
+
+
+def get_current_user(
+    access_token: str | None = Depends(oauth2_scheme),
+    refresh_token: str | None = Cookie(None, alias="refresh_token"),
+):
+    token = access_token or refresh_token
+    if not token:
+        raise HTTPException(status_code=401, detail="No token")
+    token_data = decode_token(token)
     return {"email": token_data["sub"]}
