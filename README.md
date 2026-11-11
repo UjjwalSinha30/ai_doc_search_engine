@@ -84,6 +84,7 @@ rag_frontend  -> React build served by Nginx on port 80
 rag-backend   -> FastAPI on port 8000
 rag_mysql     -> MySQL on port 3306
 rag_redis     -> Redis queue on port 6379
+rag_worker    -> RQ ingestion worker (no published port)
 ```
 
 Ollama is not started by Docker in the current setup. It should run locally on the host.
@@ -229,7 +230,13 @@ Check containers:
 docker compose ps
 ```
 
-Important: Redis stores ingestion jobs, but document processing also needs an RQ worker process. If the worker is not running, uploads can stay in `processing`.
+Compose also starts the `worker` service, which consumes the Redis `ingestion` queue after the backend is healthy and has initialized its database tables. The backend and worker share the `uploaded_files` and `chroma_data` volumes so the worker can read uploads and store vectors. Both services connect to Redis at `redis://redis:6379/0`.
+
+Check ingestion worker logs:
+
+```powershell
+docker compose logs -f worker
+```
 
 Stop containers:
 
